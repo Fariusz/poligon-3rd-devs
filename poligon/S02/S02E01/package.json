@@ -1,0 +1,20 @@
+{
+  "name": "S02E01",
+  "version": "1.0.0",
+  "main": "app/S02E01.ts",
+  "scripts": {
+    "start": "ts-node app/S02E01.ts"
+  },
+  "dependencies": {
+    "axios": "^1.9.0",
+    "adm-zip": "^0.5.10",
+    "openai": "^4.0.0",
+    "form-data": "^4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "ts-node": "^10.9.1",
+    "@types/node": "^20.0.0",
+    "@types/adm-zip": "^0.5.3"
+  }
+} 

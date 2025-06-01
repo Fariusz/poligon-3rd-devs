@@ -8,3 +8,5 @@ node_modules/
 *.txt
 **/data/
 **/package-lock.json
+/poligon/TEMPLATE
+/poligon/API_TEST
