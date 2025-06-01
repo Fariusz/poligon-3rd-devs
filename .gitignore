@@ -7,3 +7,4 @@ node_modules/
 .vscode/
 *.txt
 **/data/
+**/package-lock.json
