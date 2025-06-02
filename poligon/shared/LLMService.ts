@@ -7,7 +7,8 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 export enum Model {
     GPT4_MINI = 'gpt-4o-mini',
-    GPT4 = 'gpt-4.1',
+    GPT4o = 'gpt-4o',
+    GPT4_1 = 'gpt-4.1',
     DALL_E = 'dall-e-3',
     WHISPER = 'whisper-1'
 }
