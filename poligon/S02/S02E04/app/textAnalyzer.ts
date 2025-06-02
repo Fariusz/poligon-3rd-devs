@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { LLMService, Model } from '../../../shared/LLMService';
 
-const ANALYZER_MODEL = Model.GPT4_MINI;
+const ANALYZER_MODEL = Model.GPT4_1;
 const WORKING_NOTES_DIR = path.join(__dirname, '../data/working_notes');
 const INPUT_DIR = path.join(WORKING_NOTES_DIR, 'input');
 const OUTPUT_DIR = path.join(WORKING_NOTES_DIR, 'output');

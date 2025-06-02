@@ -13,13 +13,10 @@ dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 export class AudioAnalyzer {
     private llmService: LLMService;
-    private prompt: string;
     private openai: OpenAI;
 
     constructor() {
-        const promptPath = path.join(__dirname, '../data/prompts/audio_analyzer_prompt.txt');
-        this.prompt = fs.readFileSync(promptPath, 'utf-8');
-        this.llmService = new LLMService(this.prompt, ANALYZER_MODEL);
+        this.llmService = new LLMService("", ANALYZER_MODEL);
         this.openai = new OpenAI({
             apiKey: process.env.OPENAI_API_KEY
         });
@@ -55,7 +52,7 @@ export class AudioAnalyzer {
             // Analyze the transcription using GPT-4
             const analysis = await this.llmService.sendMessage(
                 transcription,
-                this.prompt,
+                "Zrób transkrypcję audio do tekstu",
                 ANALYZER_MODEL
             );
 

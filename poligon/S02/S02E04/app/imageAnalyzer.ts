@@ -8,12 +8,9 @@ const INPUT_DIR = path.join(WORKING_NOTES_DIR, 'input');
 
 export class ImageAnalyzer {
     private llmService: LLMService;
-    private prompt: string;
 
     constructor() {
-        const promptPath = path.join(__dirname, '../data/prompts/image_analyzer_prompt.txt');
-        this.prompt = fs.readFileSync(promptPath, 'utf-8');
-        this.llmService = new LLMService(this.prompt, ANALYZER_MODEL);
+        this.llmService = new LLMService("", ANALYZER_MODEL);
 
         // Ensure directories exist
         if (!fs.existsSync(WORKING_NOTES_DIR)) {
@@ -35,7 +32,7 @@ export class ImageAnalyzer {
             
             const analysis = await this.llmService.sendMessage(
                 `${base64Image}`,
-                this.prompt,
+                "Zwróć tekst który jest na obrazku.",
                 ANALYZER_MODEL
             );
 
