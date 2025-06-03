@@ -17,35 +17,15 @@ interface BaseReportPayload {
     answer: any;
 }
 
-export async function reportToCentrala(payload: BaseReportPayload): Promise<void> {
+export async function reportToCentrala(data: any): Promise<void> {
     try {
-        console.log('Sending to Centrala:', {
-            task: payload.task,
-            answer: payload.answer
-        });
-
-        const response = await axios.post(
-            'https://c3ntrala.ag3nts.org/report',
-            payload,
-            {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
-
-        console.log('\nResponse from Centrala:');
-        console.log('------------------------');
-        console.log(JSON.stringify(response.data, null, 2));
-        console.log('------------------------\n');
-    } catch (error) {
-        if (axios.isAxiosError(error)) {
-            console.error('Error sending to Centrala:', error.message);
-            if (error.response) {
-                console.error('Response data:', error.response.data);
-            }
+        const response = await axios.post('https://c3ntrala.ag3nts.org/report', data);
+        console.log('Centrala response:', response.data);
+    } catch (error: any) {
+        if (error.response?.data?.message) {
+            console.log('Centrala error:', error.response.data);
         } else {
-            console.error('Unexpected error:', error);
+            console.log('Error sending to Centrala');
         }
         throw error;
     }
@@ -64,7 +44,7 @@ export async function reportImageUrlToCentrala(imageUrl: string, taskName: strin
 export async function reportJsonToCentrala(data: any, taskName: string = "JSON"): Promise<void> {
     await reportToCentrala({
         task: taskName,
-        apikey: PERSONAL_API_KEY as string,
+        apikey: data.apikey || PERSONAL_API_KEY as string,
         answer: data
     });
 } 
