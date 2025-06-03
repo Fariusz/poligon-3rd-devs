@@ -1,0 +1,21 @@
+{
+  "name": "template",
+  "version": "1.0.0",
+  "main": "app/S03E01.ts",
+  "scripts": {
+    "start": "ts-node app/S03E01.ts"
+  },
+  "dependencies": {
+    "axios": "^1.9.0",
+    "adm-zip": "^0.5.10",
+    "fs-extra": "^11.2.0",
+    "openai": "^4.28.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "ts-node": "^10.9.1",
+    "@types/node": "^20.0.0",
+    "@types/adm-zip": "^0.5.3",
+    "@types/fs-extra": "^11.0.4"
+  }
+} 

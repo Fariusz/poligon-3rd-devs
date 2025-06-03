@@ -17,13 +17,34 @@ interface BaseReportPayload {
     answer: any;
 }
 
+interface ErrorHandler {
+    handleCentralaError(errorMessage: string): Promise<void>;
+}
+
+let errorHandler: ErrorHandler | null = null;
+
+export function setReportProcessor(handler: ErrorHandler) {
+    errorHandler = handler;
+}
+
 export async function reportToCentrala(data: any): Promise<void> {
     try {
         const response = await axios.post('https://c3ntrala.ag3nts.org/report', data);
         console.log('Centrala response:', response.data);
     } catch (error: any) {
-        if (error.response?.data?.message) {
-            console.log('Centrala error:', error.response.data);
+        if (error.response?.data) {
+            const { code, message } = error.response.data;
+            console.log('Centrala error:', { code, message });
+            
+            // Jeśli mamy dostęp do handlera, przeanalizuj błąd i spróbuj ponownie
+            if (errorHandler && message) {
+                await errorHandler.handleCentralaError(message);
+                
+                // Spróbuj ponownie wysłać zaktualizowane dane
+                console.log('\nPróba ponownego wysłania zaktualizowanych danych...');
+                const response = await axios.post('https://c3ntrala.ag3nts.org/report', data);
+                console.log('Centrala response:', response.data);
+            }
         } else {
             console.log('Error sending to Centrala');
         }
@@ -45,6 +66,6 @@ export async function reportJsonToCentrala(data: any, taskName: string = "JSON")
     await reportToCentrala({
         task: taskName,
         apikey: data.apikey || PERSONAL_API_KEY as string,
-        answer: data
+        answer: data.answer
     });
 } 
