@@ -62,9 +62,9 @@ export async function reportImageUrlToCentrala(imageUrl: string, taskName: strin
 }
 
 // Helper function for reporting JSON data
-export async function reportJsonToCentrala(data: any, taskName: string = "JSON"): Promise<void> {
+export async function reportJsonToCentrala(data: any): Promise<void> {
     await reportToCentrala({
-        task: taskName,
+        task: data.task,
         apikey: data.apikey || PERSONAL_API_KEY as string,
         answer: data.answer
     });

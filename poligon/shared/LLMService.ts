@@ -47,6 +47,25 @@ export class LLMService {
     }
 
     /**
+     * Generate embedding for the given text using text-embedding-3-large model
+     * @param text The text to generate embedding for
+     * @returns The embedding vector
+     */
+    async getEmbedding(text: string): Promise<number[]> {
+        try {
+            const response = await this.openai.embeddings.create({
+                model: "text-embedding-3-large",
+                input: text,
+                encoding_format: "float"
+            });
+            return response.data[0].embedding;
+        } catch (error) {
+            console.error('Error generating embedding:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Send content to the language model
      * @param request The request containing messages and optional parameters
      * @returns The model's response
