@@ -1,0 +1,20 @@
+{
+  "name": "S04E02",
+  "version": "1.0.0",
+  "main": "app/S04E02.ts",
+  "scripts": {
+    "start": "ts-node app/S04E02.ts"
+  },
+  "dependencies": {
+    "axios": "^1.9.0",
+    "adm-zip": "^0.5.10",
+    "openai": "^4.28.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "ts-node": "^10.9.1",
+    "@types/node": "^20.0.0",
+    "@types/adm-zip": "^0.5.3"
+  }
+} 
