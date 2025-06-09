@@ -10,7 +10,7 @@ export enum Model {
     GPT4o = 'gpt-4o',
     GPT4_1 = 'gpt-4.1',
     DALL_E = 'dall-e-3',
-    WHISPER = 'whisper-1'
+    WHISPER = 'whisper-1',
 }
 
 type MessageContent = string | Array<{
