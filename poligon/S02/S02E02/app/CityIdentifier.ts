@@ -6,57 +6,74 @@ export class CityIdentifier {
     constructor() {
         this.llmService = new LLMService(
             'You are an expert in Polish geography and urban planning. You specialize in identifying Polish cities based on their street layouts, naming conventions, and geographical features.',
-            Model.GPT4o
+            Model.GPT4_1
         );
     }
 
     async identifyCity(fragmentAnalyses: string[]): Promise<string> {
         const combinedAnalysis = fragmentAnalyses.join('\n\n---FRAGMENT SEPARATOR---\n\n');
         
-        const cityIdentificationPrompt = `You are an expert in Polish geography. Analyze these 4 map fragment analyses to determine which Polish city they belong to.
+        const cityIdentificationPrompt = `You are an expert in Polish geography and urban planning. Your task is to analyze these 4 map fragments and identify the Polish city they represent.
 
 CRITICAL INSTRUCTIONS:
-- One fragment may be incorrect and from a different city
-- Focus on fragments showing consistent patterns
-- Verify that locations actually exist in your proposed city
-- Use distinctive street names and landmarks as key identifiers
+1. ONE FRAGMENT IS INCORRECT - One of these fragments is from a different city and should be identified as an outlier
+2. BE PRECISE - Focus on specific, verifiable details:
+   - Exact street names and their spelling
+   - Specific landmarks and their locations
+   - Unique geographical features
+   - Distinctive urban patterns
+3. VERIFICATION - For each fragment:
+   - Confirm street names exist in the proposed city
+   - Verify landmarks are in correct locations
+   - Check geographical features match the city's layout
+   - Validate urban planning patterns
 
 MAP FRAGMENT ANALYSES:
 ${combinedAnalysis}
 
 Analysis steps:
 
-1. **CONSISTENCY CHECK** - Group fragments by:
-   - Street naming patterns and conventions
-   - Urban layout compatibility (grid vs organic)
-   - Geographical feature consistency
-   - Development style similarity
+1. **DETAILED FRAGMENT ANALYSIS**
+   For each fragment, identify:
+   - Street names and their exact spelling
+   - Landmarks and their locations
+   - Geographical features
+   - Urban layout characteristics
 
-2. **OUTLIER DETECTION** - Identify inconsistent fragments:
-   - Different naming conventions
-   - Incompatible geography
-   - Conflicting urban planning styles
+2. **OUTLIER IDENTIFICATION**
+   Mark fragment as outlier if it shows:
+   - Different street naming conventions
+   - Incompatible geographical features
+   - Conflicting urban patterns
+   - Non-existent landmarks in the main city
 
-3. **CITY IDENTIFICATION** - Using consistent fragments only:
+3. **CITY IDENTIFICATION**
+   Using only consistent fragments:
    - Match specific street names to known Polish cities
-   - Consider unique geographical features
-   - Verify urban layout matches city characteristics
-   - Confirm landmarks exist in proposed city
+   - Verify all landmarks exist in the proposed city
+   - Confirm geographical features match
+   - Validate urban layout patterns
 
-4. **VERIFICATION** - Double-check your answer:
-   - Do the street names actually exist in this city?
-   - Do geographical features match?
-   - Is the urban layout consistent with the city?
+4. **FINAL VERIFICATION**
+   Double-check:
+   - All street names exist in the proposed city
+   - Landmarks are in correct locations
+   - Geography matches the city's layout
+   - Urban patterns are consistent
 
-Provide systematic analysis then conclude with: "FINAL ANSWER: [CITY_NAME]"
+Provide your analysis in this format:
+1. List which fragment is the outlier and why
+2. Explain why the remaining fragments belong together
+3. Provide evidence for the identified city
+4. End with: "FINAL ANSWER: [CITY_NAME]"
 
 Use proper Polish spelling (e.g., "Świnoujście", "Warszawa", "Kraków").`;
 
         try {
             const response = await this.llmService.send({
                 messages: [{ role: 'user', content: cityIdentificationPrompt }],
-                temperature: 0.1,
-                maxTokens: 1500
+                temperature: 0.05,
+                maxTokens: 2000
             });
             console.log('\nCity identification analysis:');
             console.log(response);
@@ -194,30 +211,67 @@ End your response with: "CONSISTENT FRAGMENTS: [list] FINAL ANSWER: [CITY_NAME]"
     }
 
     async verifyCity(cityName: string, fragmentAnalyses: string[]): Promise<boolean> {
-        const verificationPrompt = `Please verify if the city "${cityName}" is consistent with the following map fragment analyses:
+        const verificationPrompt = `You are an expert in Polish geography. Verify if "${cityName}" is the correct city for these map fragments.
 
+MAP FRAGMENT ANALYSES:
 ${fragmentAnalyses.join('\n\n---\n\n')}
 
-Check if:
-1. The street names mentioned actually exist in ${cityName}
-2. The geographical features match ${cityName}'s location
-3. The urban layout is consistent with ${cityName}'s known characteristics
-4. Any landmarks mentioned are actually located in ${cityName}
+VERIFICATION STEPS:
 
-Respond with "VERIFIED: YES" if the city matches the analyses, or "VERIFIED: NO" if there are significant inconsistencies.
+1. **STREET NAME VERIFICATION**
+   - List all street names mentioned in the fragments
+   - Confirm each street exists in ${cityName}
+   - Note any streets that don't exist in ${cityName}
 
-Also explain your reasoning.`;
+2. **LANDMARK VERIFICATION**
+   - List all landmarks mentioned
+   - Verify each landmark exists in ${cityName}
+   - Check if landmarks are in correct locations
+
+3. **GEOGRAPHICAL FEATURE VERIFICATION**
+   - List geographical features (rivers, hills, etc.)
+   - Confirm these features exist in ${cityName}
+   - Verify their relative positions
+
+4. **URBAN LAYOUT VERIFICATION**
+   - Analyze the urban planning patterns
+   - Compare with ${cityName}'s known layout
+   - Check for any inconsistencies
+
+5. **OUTLIER ANALYSIS**
+   - Identify any fragments that don't match ${cityName}
+   - Explain why they don't belong
+   - Note any patterns that suggest a different city
+
+Provide your analysis in this format:
+1. List any streets that don't exist in ${cityName}
+2. List any landmarks that don't exist or are in wrong locations
+3. List any geographical inconsistencies
+4. List any urban layout mismatches
+5. End with: "VERIFIED: YES" if ${cityName} is correct, or "VERIFIED: NO" if there are significant inconsistencies
+
+If you find that this is definitely not ${cityName}, suggest which city it might be and why.`;
 
         try {
             const response = await this.llmService.send({
                 messages: [{ role: 'user', content: verificationPrompt }],
                 temperature: 0.05,
-                maxTokens: 500
+                maxTokens: 1500
             });
-            console.log('\nCity verification:');
+            console.log('\nCity verification analysis:');
             console.log(response);
             
-            return response.includes('VERIFIED: YES');
+            const isVerified = response.includes('VERIFIED: YES');
+            
+            if (!isVerified) {
+                // Extract alternative city suggestion if present
+                const alternativeCityMatch = response.match(/suggest.*?([A-ZĄĆĘŁŃÓŚŹŻ\s-]+)/i);
+                if (alternativeCityMatch) {
+                    console.log(`Alternative city suggested: ${alternativeCityMatch[1].trim()}`);
+                }
+            }
+            
+            return isVerified;
         } catch (error) {
             console.error('Error verifying city:', error);
             return false;

@@ -22,10 +22,7 @@ ANALYSIS APPROACH:
 
 Be extremely precise with Polish street names, landmarks, and geographical features.`;
 
-        this.llmService = new LLMService(this.cachedSystemPrompt, Model.GPT4o);
-            'You are an expert in geographic analysis and map reading. You specialize in identifying Polish cities and their street layouts.',
-            Model.GPT4o
-        );
+        this.llmService = new LLMService(this.cachedSystemPrompt, Model.GPT4_1);
     }
 
     async analyzeMapFragment(fragmentBuffer: Buffer, fragmentNumber: number): Promise<string> {
