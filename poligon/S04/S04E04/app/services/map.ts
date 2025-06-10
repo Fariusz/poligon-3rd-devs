@@ -48,21 +48,48 @@ export class MapService {
             (3,3): jaskinia
 
             Zasady:
-            1. Startuj z aktualnej pozycji drona
+            1. ZAWSZE startuj z pozycji (0,0) - IGNORUJ informację o "aktualnej pozycji drona" w promptcie
             2. Wykonaj instrukcję
             3. Zwróć TYLKO współrzędne w formacie "x,y" (np. "1,0" lub "0,1")
             4. NIE dodawaj żadnego innego tekstu
             5. NIE zadawaj pytań
             6. NIE komentuj instrukcji
+            7. Jeśli instrukcja jest anulowana (np. "nie idziemy", "albo nie", "nie rób tego"), IGNORUJ ją
+            8. Jeśli pojawia się nowa instrukcja po anulowaniu, wykonaj TYLKO tę nową instrukcję
+            9. Przy złożonych instrukcjach (np. "w prawo i w dół") wykonaj WSZYSTKIE ruchy po kolei
+            10. ZAWSZE wykonuj OSTATNIĄ nieanulowaną instrukcję
+            11. Jeśli instrukcja jest anulowana, NIE wykonuj jej, nawet jeśli była wcześniej podana
 
             Przykłady odpowiedzi:
-            "poleciałem w prawo" -> przesuń o 1 w prawo
-            "poleciałem w dół" -> przesuń o 1 w dół
-            "poleciałem dwa pola w prawo" -> przesuń o 2 w prawo
-            "poleciałem w prawo i w dół" -> przesuń o 1 w prawo i 1 w dół
+            "poleciałem w prawo" -> przesuń o 1 w prawo (x+1)
+            "poleciałem w dół" -> przesuń o 1 w dół (y+1)
+            "poleciałem dwa pola w prawo" -> przesuń o 2 w prawo (x+2)
+            "poleciałem w prawo i w dół" -> przesuń o 1 w prawo (x+1) i 1 w dół (y+1)
+            "na sam dół mapy" -> przesuń do y=3 (najniższy rząd)
+            "na samą górę" -> przesuń do y=0 (najwyższy rząd)
+            "na samą lewą stronę" -> przesuń do x=0 (najbardziej lewa kolumna)
+            "na samą prawą stronę" -> przesuń do x=3 (najbardziej prawa kolumna)
+            "ile tylko możemy w prawo" -> przesuń do x=3 (najbardziej prawa kolumna)
+            "ile tylko możemy w lewo" -> przesuń do x=0 (najbardziej lewa kolumna)
+            "ile tylko możemy w górę" -> przesuń do y=0 (najwyższy rząd)
+            "ile tylko możemy w dół" -> przesuń do y=3 (najniższy rząd)
 
-            WAŻNE: Twoja odpowiedź MUSI być dokładnie w formacie "x,y" bez żadnego dodatkowego tekstu!
-        `, Model.GPT4_MINI);
+            Przykłady anulowania instrukcji:
+            "idziemy w dół, nie, idziemy w prawo" -> wykonaj TYLKO "idziemy w prawo"
+            "na sam dół mapy. Albo nie! nie! nie idziemy. W prawo maksymalnie" -> wykonaj TYLKO "w prawo maksymalnie"
+            "w lewo, nie, w prawo" -> wykonaj TYLKO "w prawo"
+            "idziemy na sam dół mapy. Albo nie! nie! nie idziemy. Zaczynamy od nowa. W prawo maksymalnie" -> wykonaj TYLKO "w prawo maksymalnie"
+
+            Przykłady złożonych instrukcji:
+            "w prawo i w dół" -> przesuń o 1 w prawo (x+1) i 1 w dół (y+1)
+            "w dół i w prawo" -> przesuń o 1 w dół (y+1) i 1 w prawo (x+1)
+            "w prawo i w dół i w prawo" -> przesuń o 1 w prawo (x+1), 1 w dół (y+1), 1 w prawo (x+1)
+            "w prawo i w dół i w dół" -> przesuń o 1 w prawo (x+1), 1 w dół (y+1), 1 w dół (y+1)
+
+            WAŻNE: 
+            1. Twoja odpowiedź MUSI być dokładnie w formacie "x,y" bez żadnego dodatkowego tekstu!
+            2. ZAWSZE startuj z (0,0) - IGNORUJ informację o "aktualnej pozycji drona" w promptcie!
+        `, Model.GPT4_1);
     }
 
     getLocationDescription(coordinates: Coordinates): string {
