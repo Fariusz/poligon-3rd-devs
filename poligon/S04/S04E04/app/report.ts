@@ -1,4 +1,4 @@
-import { reportJsonToCentrala } from '../../../../shared/centralaReporter';
+import { reportJsonToCentrala } from '../../../shared/centralaReporter';
 import * as dotenv from 'dotenv';
 import path from 'path';
 

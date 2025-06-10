@@ -1,5 +1,5 @@
-import { MapService } from './map';
-import { DroneInstruction, LocationResponse } from './types';
+import { MapService } from './services/map';
+import { DroneInstruction, LocationResponse } from './types/drone';
 
 export class DroneService {
     private mapService: MapService;

@@ -17,8 +17,8 @@ export class DroneService {
             const coordinates = await this.mapService.getFinalCoordinates(instruction.instruction);
             console.log('Final coordinates:', coordinates);
             
-            // Get description of what's at those coordinates
-            const description = await this.mapService.getLocationDescription(coordinates);
+            // Get description of what's at those coordinates (synchronous now)
+            const description = this.mapService.getLocationDescription(coordinates);
             console.log('Location description:', description);
 
             // Zwracamy tylko wymagane pole description

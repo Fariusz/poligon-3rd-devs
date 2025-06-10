@@ -44,6 +44,11 @@ export class LLMService {
         });
         this.defaultModel = model;
         this.defaultSystemPrompt = systemPrompt;
+        console.log('\n🤖 LLM Service initialized with:');
+        console.log('Model:', model);
+        if (systemPrompt) {
+            console.log('System prompt:', systemPrompt);
+        }
     }
 
     /**
@@ -85,6 +90,10 @@ export class LLMService {
             // Add user messages
             messages.push(...request.messages);
 
+            console.log('\n📤 Sending request to LLM:');
+            console.log('Model:', request.model || this.defaultModel);
+            console.log('Messages:', JSON.stringify(messages, null, 2));
+
             const completion = await this.openai.chat.completions.create({
                 model: request.model || this.defaultModel,
                 messages: messages as any, // Type assertion needed due to OpenAI API types
@@ -92,9 +101,13 @@ export class LLMService {
                 max_tokens: request.maxTokens
             });
 
-            return completion.choices[0].message.content || 'No answer received';
+            const response = completion.choices[0].message.content || 'No answer received';
+            console.log('\n📥 Received response from LLM:');
+            console.log(response);
+
+            return response;
         } catch (error) {
-            console.error('Error getting answer from GPT:', error);
+            console.error('❌ Error getting answer from GPT:', error);
             throw error;
         }
     }
@@ -143,14 +156,23 @@ export class LLMService {
                 });
             }
 
+            console.log('\n📤 Sending message to LLM:');
+            console.log('Model:', model || this.defaultModel);
+            console.log('System prompt:', finalSystemPrompt);
+            console.log('User message:', message);
+
             const completion = await this.openai.chat.completions.create({
                 model: model || this.defaultModel,
                 messages: messages as any // Type assertion needed due to OpenAI API types
             });
 
-            return completion.choices[0].message.content || 'No answer received';
+            const response = completion.choices[0].message.content || 'No answer received';
+            console.log('\n📥 Received response from LLM:');
+            console.log(response);
+
+            return response;
         } catch (error) {
-            console.error('Error getting answer from GPT:', error);
+            console.error('❌ Error getting answer from GPT:', error);
             throw error;
         }
     }
@@ -163,14 +185,22 @@ export class LLMService {
      */
     async sendConversation(messages: Message[], model?: Model): Promise<string> {
         try {
+            console.log('\n📤 Sending conversation to LLM:');
+            console.log('Model:', model || this.defaultModel);
+            console.log('Messages:', JSON.stringify(messages, null, 2));
+
             const completion = await this.openai.chat.completions.create({
                 model: model || this.defaultModel,
                 messages: messages as any // Type assertion needed due to OpenAI API types
             });
 
-            return completion.choices[0].message.content || 'No answer received';
+            const response = completion.choices[0].message.content || 'No answer received';
+            console.log('\n📥 Received response from LLM:');
+            console.log(response);
+
+            return response;
         } catch (error) {
-            console.error('Error getting answer from GPT:', error);
+            console.error('❌ Error getting answer from GPT:', error);
             throw error;
         }
     }
@@ -182,6 +212,8 @@ export class LLMService {
      * @returns The model's response
      */
     async sendShortAnswer(message: string, model?: Model): Promise<string> {
+        console.log('\n🎯 Sending short answer request:');
+        console.log('Message:', message);
         return this.sendMessage(message, 'Answer the questions with shortest possible answer.', model);
     }
 } 
