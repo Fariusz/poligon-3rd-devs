@@ -6,7 +6,6 @@ import { promisify } from "util";
 const execAsync = promisify(exec);
 
 export class PdfImageService {
-            fs.mkdirSync(this.pagesDir, { recursive: true });
   private readonly dataDir: string;
   private readonly inputDir: string;
   private readonly outputDir: string;
