@@ -94,16 +94,17 @@ export class NotebookQASystem {
         prompt += `Pytanie: ${question}\nOdpowiedz zwięźle i konkretnie, bez komentarzy:`;
 
         try {
+          console.log(
+            `📤 Iteracja ${iteration}: wysłano zapytanie do LLM (pytanie ${key})`,
+          );
           const response = await this.llmService.send({
             messages: [{ role: "user", content: prompt }],
-            model: Model.GPT4o,
+            model: Model.GPT4_1,
             temperature: 0.2,
             maxTokens: 256,
           });
           answers[key] = response.trim();
-          console.log(
-            `Pytanie ${key}: ${question}\nOdpowiedź: ${answers[key]}\n`,
-          );
+          console.log(`📥 Odpowiedź: ${answers[key]}`);
         } catch (error) {
           console.error(
             `❌ Błąd podczas odpowiadania na pytanie ${key}:`,
