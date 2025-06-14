@@ -3,50 +3,33 @@ import * as path from "path";
 import { ContextBuilderService } from "./ContextBuilderService";
 import { LLMService, Model } from "../../../../shared/LLMService";
 
+import { reportToCentrala } from "../../../../shared/centralaReporter";
+
 export class NotebookQASystem {
   private readonly inputDir: string;
   private readonly outputDir: string;
   private readonly questionsFile: string;
   private readonly answersFile: string;
-  private readonly feedbackFile: string;
   private readonly contextBuilder: ContextBuilderService;
   private readonly llmService: LLMService;
+
+  // In-memory feedback for this run only
+  private feedbackMap: Record<string, { lastAnswers: string[]; hint: string }> =
+    {};
+
+  // Bind statically imported reportToCentrala for linearity
+  private readonly reportToCentrala = reportToCentrala;
 
   constructor() {
     this.inputDir = path.join(__dirname, "../../data/input");
     this.outputDir = path.join(__dirname, "../../data/output/text");
     this.questionsFile = path.join(this.inputDir, "notes.json");
     this.answersFile = path.join(this.outputDir, "answers.json");
-    this.feedbackFile = path.join(this.outputDir, "feedback.json");
     this.contextBuilder = new ContextBuilderService();
     this.llmService = new LLMService(
       "Odpowiedz na pytanie na podstawie poniższego kontekstu notatnika. Odpowiedź powinna być zwięzła i konkretna.",
       Model.GPT4_1,
     );
-  }
-
-  /**
-   * Zapisuje feedback z Centrali do pliku feedback.json.
-   * @param feedbackData Obiekt { [key]: { lastAnswer, hint } }
-   */
-  saveFeedback(
-    feedbackData: Record<string, { lastAnswer: string; hint: string }>,
-  ) {
-    fs.writeFileSync(
-      this.feedbackFile,
-      JSON.stringify(feedbackData, null, 2),
-      "utf-8",
-    );
-  }
-
-  /**
-   * Wczytuje feedback z Centrali z pliku feedback.json.
-   */
-  loadFeedback(): Record<string, { lastAnswer: string; hint: string }> {
-    if (fs.existsSync(this.feedbackFile)) {
-      return JSON.parse(fs.readFileSync(this.feedbackFile, "utf-8"));
-    }
-    return {};
   }
 
   /**
@@ -56,8 +39,9 @@ export class NotebookQASystem {
   async runFeedbackLoop(): Promise<void> {
     let allCorrect = false;
     let iteration = 1;
-    let feedbackMap = this.loadFeedback();
-    let lastAnswers: Record<string, string> = {};
+    // In-memory feedback map, reset on each run
+    this.feedbackMap = {};
+    let correctAnswers: Record<string, string> = {};
     let questions: Record<string, string> = {};
 
     if (!fs.existsSync(this.questionsFile)) {
@@ -65,140 +49,182 @@ export class NotebookQASystem {
     }
     questions = JSON.parse(fs.readFileSync(this.questionsFile, "utf-8"));
 
-    while (!allCorrect) {
-      console.log(`\n--- Iteracja ${iteration} ---`);
+    // Set to track questions already accepted by Centrala
+    const doneKeys = new Set<string>();
 
-      // Prompt caching: stały kontekst na początku promptu
-      let context = this.contextBuilder.buildContext();
-      const staticContext = `Kontekst notatnika:\n${context}\n\n`;
+    const sortedKeys = Object.keys(questions).sort();
 
-      // Wybierz tylko pytania wymagające odpowiedzi (z feedbackiem lub wszystkie w pierwszej iteracji)
-      const keysToAsk = Object.keys(questions).filter((key) => {
-        if (Object.keys(feedbackMap).length > 0) {
-          return !!feedbackMap[key];
-        }
-        return true;
-      });
+    for (let i = 0; i < sortedKeys.length; i++) {
+      const key = sortedKeys[i];
+      let done = false;
 
-      const answers: Record<string, string> = {};
+      iteration = 1;
+      while (!done) {
+        console.log(`\n==============================`);
+        console.log(`--- Iteracja ${iteration} ---`);
+        console.log(`Przetwarzane pytanie: ${key}`);
+        iteration++;
 
-      for (const key of keysToAsk) {
-        const question = questions[key];
+        // Budujemy kontekst i prompt pojedynczo dla pytania
+        let context = this.contextBuilder.buildContext();
+        const staticContext = `Kontekst notatnika:\n${context}\n\n`;
+
         let prompt = staticContext;
 
-        // Jeśli dla tego pytania jest feedback, dołącz go do promptu w jasny sposób
-        if (feedbackMap[key]) {
-          prompt += `Twoja poprzednia odpowiedź na to pytanie brzmiała:\n"${feedbackMap[key].lastAnswer}"\ni była błędna. Podpowiedź brzmi:\n"${feedbackMap[key].hint}"\nSpróbuj ponownie, unikając odpowiedzi "${feedbackMap[key].lastAnswer}".\n\n`;
+        if (this.feedbackMap[key]) {
+          console.log(`🔴 Błędne odpowiedzi do tej pory dla pytania ${key}:`);
+          const lastAnswers = this.feedbackMap[key].lastAnswers || [];
+          const hint = this.feedbackMap[key].hint || "";
+          lastAnswers.forEach((ans: string, idx: number) => {
+            console.log(`  ${idx + 1}. ${ans}`);
+          });
+          if (lastAnswers.length > 0) {
+            prompt += `Twoje poprzednie odpowiedzi na pytanie ${key} były błędne:\n`;
+            lastAnswers.forEach((ans, idx) => {
+              prompt += `  ${idx + 1}. "${ans}"\n`;
+            });
+            prompt += `Podpowiedź brzmi: "${hint}".\n`;
+            prompt += `Spróbuj ponownie, unikając powyższych odpowiedzi i wykorzystując podpowiedź.\n\n`;
+          } else if (hint) {
+            prompt += `Podpowiedź brzmi: "${hint}". Wykorzystaj ją w odpowiedzi.\n\n`;
+          }
+        } else {
+          console.log(`🟢 Brak błędnych odpowiedzi dla pytania ${key}`);
         }
 
-        prompt += `Pytanie: ${question}\nOdpowiedz zwięźle i konkretnie, bez komentarzy:`;
+        prompt += `Pytanie: ${questions[key]}\n`;
+
+        // Dodaj pułapki i instrukcje specyficzne dla pytań
+        if (key === "01") {
+          prompt +=
+            "Odpowiedź nie jest podana wprost. Przeanalizuj cały kontekst i wywnioskuj odpowiedź na podstawie dostępnych informacji.\n";
+        }
+        if (key === "03") {
+          prompt +=
+            "Zwróć szczególną uwagę na drobny, szary tekst pod rysunkiem – może być kluczowy dla odpowiedzi.\n";
+        }
+        if (key === "04") {
+          prompt +=
+            "Data nie jest podana wprost – oblicz ją na podstawie informacji z kontekstu i podaj w formacie YYYY-MM-DD.\n";
+        }
+        if (key === "05") {
+          prompt +=
+            "Tekst pochodzi z OCR i może zawierać błędy, szczególnie w nazwie miejscowości. Miejscowość leży niedaleko miasta silnie związanego z historią AIDevs. Nazwa może być rozbita na dwa fragmenty.\n";
+        }
+
+        prompt += "Odpowiedz zwięzle i konkretnie, bez komentarzy:";
+
+        let answer: string;
+
+        // Wyraźny log promptu wysyłanego do LLM
+        console.log(`\nWysyłam pytanie ${key} do LLM:`);
+        console.log("PROMPT:\n" + prompt.slice(0, 1200)); // ogranicz długość promptu w logu
 
         try {
-          console.log(
-            `📤 Iteracja ${iteration}: wysłano zapytanie do LLM (pytanie ${key})`,
-          );
-          const response = await this.llmService.send({
+          const startLLM = Date.now();
+          answer = await this.llmService.send({
             messages: [{ role: "user", content: prompt }],
             model: Model.GPT4_1,
             temperature: 0.2,
             maxTokens: 256,
           });
-          answers[key] = response.trim();
-          console.log(`📥 Odpowiedź: ${answers[key]}`);
+          const llmTime = ((Date.now() - startLLM) / 1000).toFixed(2);
+          answer = answer.trim();
+          // Wyraźny log odpowiedzi LLM
+          console.log("\nOtrzymano odpowiedź z LLM:");
+          console.log("ODPOWIEDŹ:", answer);
+          console.log(`⏱️ Czas oczekiwania na LLM: ${llmTime} sekund`);
         } catch (error) {
           console.error(
             `❌ Błąd podczas odpowiadania na pytanie ${key}:`,
             error,
           );
-          answers[key] = "[Błąd podczas generowania odpowiedzi]";
+          answer = "[Błąd podczas generowania odpowiedzi]";
         }
-      }
 
-      // Jeśli to nie pierwsza iteracja, uzupełnij odpowiedzi dla pozostałych pytań (nie wysyłaj ponownie do LLM)
-      if (
-        Object.keys(feedbackMap).length > 0 &&
-        fs.existsSync(this.answersFile)
-      ) {
-        const prevAnswers = JSON.parse(
-          fs.readFileSync(this.answersFile, "utf-8"),
-        );
-        for (const key of Object.keys(questions)) {
-          if (!answers[key] && prevAnswers[key]) {
-            answers[key] = prevAnswers[key];
+        correctAnswers[key] = answer;
+
+        // Uzupełnij odpowiedzi dla pozostałych pytań zachowując je z poprzedniego stanu lub pusty string
+        for (const qKey of Object.keys(questions)) {
+          if (!correctAnswers[qKey]) {
+            correctAnswers[qKey] = "";
           }
         }
-      }
 
-      fs.writeFileSync(
-        this.answersFile,
-        JSON.stringify(answers, null, 2),
-        "utf-8",
-      );
-      console.log("✅ Odpowiedzi zapisane do:", this.answersFile);
+        // Twórz pełny, posortowany obiekt odpowiedzi na wszystkie pytania
+        const fullAnswers: Record<string, string> = {};
+        Object.keys(questions)
+          .sort()
+          .forEach((qKey) => {
+            fullAnswers[qKey] = correctAnswers[qKey];
+          });
 
-      // Przygotuj payload do Centrali
-      const apiKey = process.env.PERSONAL_API_KEY || "YOUR_API_KEY";
-      const payload = {
-        task: "notes",
-        apikey: apiKey,
-        answer: answers,
-      };
-
-      // Wyślij odpowiedź do Centrali i obsłuż feedback
-      try {
-        const { reportToCentrala } = await import(
-          "../../../../shared/centralaReporter"
+        // Zapisz pełne odpowiedzi do pliku
+        fs.writeFileSync(
+          this.answersFile,
+          JSON.stringify(fullAnswers, null, 2),
+          "utf-8",
         );
-        let centralaError = null;
+        console.log("✅ Odpowiedzi zapisane do:", this.answersFile);
+
+        const apiKey = process.env.PERSONAL_API_KEY || "YOUR_API_KEY";
+        const payload = {
+          task: "notes",
+          apikey: apiKey,
+          answer: fullAnswers,
+        };
+
+        // Import reportToCentrala statically at the top of the file for strict linearity
         try {
-          await reportToCentrala(payload);
-          // Jeśli nie ma błędu, zakończ pętlę
-          allCorrect = true;
-          console.log("✅ Wszystkie odpowiedzi zaakceptowane przez Centralę!");
+          const startCentrala = Date.now();
+          await this.reportToCentrala(payload);
+          const centralaTime = ((Date.now() - startCentrala) / 1000).toFixed(2);
+          console.log(
+            `✅ Odpowiedź na pytanie ${key} zaakceptowana przez Centralę`,
+          );
+          console.log(
+            `⏱️ Czas oczekiwania na Centralę: ${centralaTime} sekund`,
+          );
+          done = true;
         } catch (err: any) {
-          // Odczytaj message i hint z błędu Centrali
           if (err?.response?.data) {
             const data = err.response.data;
-            // Obsługa pojedynczego błędu lub wielu błędów (jeśli Centrala zwraca więcej niż jeden)
-            // Zakładamy, że message zawiera info o numerze pytania
             const { message, hint, debug } = data;
-            // Przykład: message: 'Answer for question 01 is incorrect'
             const match = message && message.match(/question (\d+)/);
             if (match) {
-              const key = match[1].padStart(2, "0");
-              // debug to ostatnia odpowiedź wysłana do Centrali
-              this.updateFeedback(key, debug || answers[key] || "", hint || "");
-              console.log(`Pytanie ${key}: ${message}`);
+              const failedKey = match[1].padStart(2, "0");
+              // In-memory feedback only
+              if (!this.feedbackMap[failedKey]) {
+                this.feedbackMap[failedKey] = { lastAnswers: [], hint: "" };
+              }
+              // ZAWSZE dopisuj nową odpowiedź do historii, nawet jeśli się powtarza
+              this.feedbackMap[failedKey].lastAnswers.push(
+                debug || fullAnswers[failedKey] || "",
+              );
+              this.feedbackMap[failedKey].hint = hint || "";
+              console.log(`Pytanie ${failedKey}: ${message}`);
               if (hint) console.log(`Hint: ${hint}`);
             } else {
-              // fallback: jeśli nie można wyciągnąć numeru pytania, wypisz wszystko
               console.log("Centrala error message:", message);
               if (hint) console.log("Centrala hint:", hint);
             }
-            // Kontynuuj pętlę, bo nie wszystkie odpowiedzi są poprawne
-            feedbackMap = this.loadFeedback();
-            iteration++;
+            done = false;
           } else {
-            // Inny błąd (np. sieciowy)
+            console.error(
+              "❌ Błąd podczas wysyłania odpowiedzi do Centrali:",
+              err,
+            );
             throw err;
           }
         }
-      } catch (err) {
-        console.error("❌ Błąd podczas wysyłania odpowiedzi do Centrali:", err);
-        throw err;
       }
+
+      // Wyraźny separator po każdej iteracji
+      console.log("\n==============================\n");
     }
+
+    allCorrect = true;
   }
 
-  /**
-   * Zaktualizuj feedback dla konkretnego pytania na podstawie odpowiedzi Centrali.
-   * @param key - klucz pytania (np. "01")
-   * @param lastAnswer - ostatnia błędna odpowiedź
-   * @param hint - podpowiedź z Centrali
-   */
-  updateFeedback(key: string, lastAnswer: string, hint: string) {
-    const feedbackMap = this.loadFeedback();
-    feedbackMap[key] = { lastAnswer, hint };
-    this.saveFeedback(feedbackMap);
-  }
+  // updateFeedback is no longer needed, feedback is kept in memory only
 }

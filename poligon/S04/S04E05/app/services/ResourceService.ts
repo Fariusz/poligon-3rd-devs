@@ -4,6 +4,7 @@ import axios from "axios";
 import { FileDownloadService } from "./FileDownloadService";
 // Dodaj dotenv do obsługi .env
 import * as dotenv from "dotenv";
+
 dotenv.config({ path: path.resolve(__dirname, "../../../../.env") });
 
 export class ResourceService {
