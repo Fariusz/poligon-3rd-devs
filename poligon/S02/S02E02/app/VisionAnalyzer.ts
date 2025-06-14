@@ -1,138 +1,115 @@
-import { LLMService, Model } from '../shared/LLMService';
+import { LLMService, Model } from "../shared/LLMService";
 
 export class VisionAnalyzer {
-    private llmService: LLMService;
-    private cachedSystemPrompt: string;
+  private llmService: LLMService;
+  private cachedSystemPrompt: string;
 
-    constructor() {
-        this.cachedSystemPrompt = `You are an expert in Polish geography and map reading. Your mission is to identify which Polish city these map fragments belong to.
+  constructor() {
+    this.cachedSystemPrompt = `You are an expert in Polish geography and map reading specialized in analyzing street layouts and urban patterns.
 
 CRITICAL CONTEXT:
-- You will analyze 4 map fragments from what should be ONE Polish city
-- ONE fragment may be INCORRECT and from a different city - this is a deliberate test
-- Focus on identifying the 3 consistent fragments and ignore the outlier
-- Your goal is to determine the correct Polish city name
+- You're analyzing a fragment from what should be ONE Polish city
+- Focus on precise identification of street names and landmarks
+- Pay special attention to:
+  * Street names with exact Polish spelling
+  * Religious buildings (churches, cemeteries)
+  * Educational institutions
+  * Major landmarks
+  * Urban layout patterns
 
-ANALYSIS APPROACH:
-1. Extract precise details from each fragment (street names, landmarks, layout)
-2. Compare fragments for consistency patterns
-3. Identify the outlier fragment (if any)
-4. Focus on consistent fragments to determine the city
-5. Verify your answer by confirming locations exist in the proposed city
+Your goal is to extract specific, verifiable details that can help identify the city.`;
 
-Be extremely precise with Polish street names, landmarks, and geographical features.`;
+    this.llmService = new LLMService(this.cachedSystemPrompt, Model.GPT4o);
+  }
 
-        this.llmService = new LLMService(this.cachedSystemPrompt, Model.GPT4_1);
-    }
+  async analyzeMapFragment(
+    fragmentBuffer: Buffer,
+    fragmentNumber: number,
+  ): Promise<string> {
+    const base64Image = fragmentBuffer.toString("base64");
 
-    async analyzeMapFragment(fragmentBuffer: Buffer, fragmentNumber: number): Promise<string> {
-        const base64Image = fragmentBuffer.toString('base64');
-        
-        const prompt = `You are analyzing Fragment ${fragmentNumber} of a Polish city map. Your task is to identify which Polish city this fragment belongs to.
+    const prompt = `Analyze this Polish city map fragment and extract these specific details:
 
-IMPORTANT: One of the 4 fragments may be incorrect and from a different city. Focus on extracting precise details.
+1. STREET NAMES (exact Polish spelling with diacritics)
+2. RELIGIOUS BUILDINGS:
+   - Churches with denominations
+   - Cemeteries with types
+3. EDUCATIONAL INSTITUTIONS
+4. MAJOR LANDMARKS
+5. URBAN PATTERN TYPE:
+   - Grid/radial/organic layout
+   - Density characteristics
+   - Water features if any
 
-Analyze this map fragment and provide:
+FORMAT YOUR RESPONSE:
+Streets: [list]
+Religious: [list]
+Education: [list]
+Landmarks: [list]
+Pattern: [description]
 
-1. **Street Names** (write exactly as shown, including Polish diacritics):
-   - List ALL visible street names
-   - Note any unusual or distinctive naming patterns
-
-2. **Landmarks and Points of Interest**:
-   - Churches, schools, cemeteries, hospitals
-   - Government buildings, cultural centers
-   - Parks, squares, monuments
-   - Shopping centers, markets
-
-3. **Urban Layout**:
-   - Street pattern (grid, radial, organic)
-   - Building density and type
-   - Historical vs modern development indicators
-
-4. **Geographical Features**:
-   - Rivers, lakes, coastline
-   - Hills, bridges, green areas
-   - Proximity to water bodies
-
-5. **Transportation**:
-   - Major roads with numbers
-   - Railway lines, stations
-   - Bus stops, tram lines
-
-6. **Distinctive Features**:
-   - Anything unique that could identify this specific location
-   - Historical or cultural references in names
-
-Be extremely precise with street names and landmark names as these are key identifiers.
+Be extremely precise with Polish names and locations.
 
 Fragment ${fragmentNumber}: data:image/jpeg;base64,${base64Image}`;
 
-        try {
-            // Use lower temperature for more consistent results
-            const response = await this.llmService.send({
-                messages: [{ role: 'user', content: prompt }],
-                temperature: 0.1,
-                maxTokens: 1000
-            });
-            console.log(`\nFragment ${fragmentNumber} analysis:`);
-            console.log(response);
-            return response;
-        } catch (error) {
-            console.error(`Error analyzing fragment ${fragmentNumber}:`, error);
-            return `Error analyzing fragment ${fragmentNumber}: ${error instanceof Error ? error.message : 'Unknown error'}`;
-        }
+    try {
+      // Use lower temperature for more consistent results
+      const response = await this.llmService.send({
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.1,
+        maxTokens: 1000,
+      });
+      console.log(`\nFragment ${fragmentNumber} analysis:`);
+      console.log(response);
+      return response;
+    } catch (error) {
+      console.error(`Error analyzing fragment ${fragmentNumber}:`, error);
+      return `Error analyzing fragment ${fragmentNumber}: ${error instanceof Error ? error.message : "Unknown error"}`;
     }
+  }
 
-    async analyzeAllFragmentsTogether(fragments: Buffer[]): Promise<string> {
-        console.log('Analyzing all fragments together for better context...');
-        
-        const fragmentsBase64 = fragments.map((fragment, index) => ({
-            number: index + 1,
-            data: fragment.toString('base64')
-        }));
+  async analyzeAllFragmentsTogether(fragments: Buffer[]): Promise<string> {
+    console.log("Analyzing all fragments together for better context...");
 
-        const prompt = `You are analyzing 4 map fragments from what should be a single Polish city. CRITICAL: One fragment may be incorrect and from a different city.
+    const fragmentsBase64 = fragments.map((fragment, index) => ({
+      number: index + 1,
+      data: fragment.toString("base64"),
+    }));
 
-Your task:
-1. **Consistency Check**: Identify which fragments belong together based on:
-   - Similar street naming conventions
-   - Compatible urban layout styles  
-   - Consistent geographical features
-   - Matching architectural/development patterns
+    const prompt = `Compare these map fragments and determine if they represent the same Polish city.
 
-2. **Outlier Detection**: Identify any fragment that seems inconsistent:
-   - Different naming patterns
-   - Incompatible geographical features
-   - Different urban planning style
+FOCUS ON:
+1. Street name patterns and language
+2. Religious buildings (especially cemeteries)
+3. Educational institutions
+4. Urban layout style
+5. Distinctive landmarks
 
-3. **City Identification**: Based on the consistent fragments, determine the Polish city by:
-   - Unique street names that exist in that city
-   - Characteristic landmarks or geographical features
-   - Urban layout typical for that city
+For each consistent element you find, verify it exists in a real Polish city.
 
-4. **Verification**: Ensure the locations you identify actually exist in the proposed city.
+List any fragment that seems different from others, explaining why.
 
-IMPORTANT: Focus on the fragments that show consistency. Ignore any outlier fragment when making your final city determination.
-
-Analyze each fragment separately first, then compare for consistency.
+RESPONSE FORMAT:
+Matching Elements: [list key features that appear in multiple fragments]
+Inconsistencies: [list any contradictions]
+Identified City: [name with proper Polish spelling]
+Verification: [list at least 3 verifiable locations]
 
 Fragments:
-${fragmentsBase64.map(f => `Fragment ${f.number}: data:image/jpeg;base64,${f.data}`).join('\n\n')}
+${fragmentsBase64.map((f) => `Fragment ${f.number}: data:image/jpeg;base64,${f.data}`).join("\n\n")}`;
 
-End with: "CONSISTENT FRAGMENTS: [list] | OUTLIER: [fragment number or NONE] | IDENTIFIED CITY: [city name]"`;
-
-        try {
-            const response = await this.llmService.send({
-                messages: [{ role: 'user', content: prompt }],
-                temperature: 0.1,
-                maxTokens: 2000
-            });
-            console.log('\nCombined fragments analysis:');
-            console.log(response);
-            return response;
-        } catch (error) {
-            console.error('Error analyzing fragments together:', error);
-            throw error;
-        }
+    try {
+      const response = await this.llmService.send({
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.1,
+        maxTokens: 2000,
+      });
+      console.log("\nCombined fragments analysis:");
+      console.log(response);
+      return response;
+    } catch (error) {
+      console.error("Error analyzing fragments together:", error);
+      throw error;
     }
+  }
 }

@@ -1,0 +1,19 @@
+{
+  "name": "S05E01",
+  "version": "1.0.0",
+  "main": "app/solution.ts",
+  "scripts": {
+    "start": "ts-node app/solution.ts"
+  },
+  "dependencies": {
+    "axios": "^1.9.0",
+    "dotenv": "^16.4.5",
+    "openai": "^4.28.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "ts-node": "^10.9.1",
+    "@types/node": "^20.0.0",
+    "@types/dotenv": "^8.2.0"
+  }
+}
